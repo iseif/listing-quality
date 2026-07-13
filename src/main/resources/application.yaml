@@ -1,0 +1,32 @@
+spring:
+  ai:
+    model:
+      audio:
+        speech: none
+        transcription: none
+      chat: google-genai
+      embedding: none
+      image: none
+      moderation: none
+    chat:
+      observations:
+        # Prompt/completion content is opt-in because it can contain seller data.
+        # Enable only in a trusted environment when you need to debug model output.
+        log-prompt: false
+        log-completion: false
+  application:
+    name: listing-quality
+
+listing-quality:
+  ai:
+    # Provider-neutral tuning for the listing-review chat client. Override per profile if needed.
+    temperature: 0.2
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+  endpoint:
+    health:
+      show-details: when-authorized

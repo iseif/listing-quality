@@ -7,6 +7,5 @@ spring:
         api-key: ${GEMINI_API_KEY}
         chat:
           model: gemini-3.1-flash-lite
-          options:
-            # Gemini names the response token cap max-output-tokens.
-            max-output-tokens: 800
+          # Gemini names the response token cap max-output-tokens.
+          max-output-tokens: 800

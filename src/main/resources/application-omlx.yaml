@@ -1,0 +1,10 @@
+spring:
+  ai:
+    model:
+      chat: openai
+    openai:
+      chat:
+        base-url: ${OMLX_BASE_URL:http://localhost:8000/v1}
+        api-key: ${OMLX_API_KEY:local}
+        model: ${OMLX_CHAT_MODEL:mlx-community/gemma-4-e4b-it-4bit}
+        max-tokens: 800

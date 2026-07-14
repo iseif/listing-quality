@@ -17,7 +17,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ListingReviewValidatorTest {
 
   private static ValidatorFactory factory;
-  private ListingReviewValidator validator;
 
   @BeforeAll
   static void openFactory() {

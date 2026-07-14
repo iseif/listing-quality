@@ -6,6 +6,5 @@ spring:
       api-key: ${OPENAI_API_KEY}
       chat:
         model: gpt-5.4-mini
-        options:
-          # OpenAI's newer models require max-completion-tokens (the legacy max-tokens is rejected).
-          max-completion-tokens: 800
+        # OpenAI's newer models require max-completion-tokens (the legacy max-tokens is rejected).
+        max-completion-tokens: 800

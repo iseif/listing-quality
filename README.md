@@ -5,8 +5,9 @@ receives a product listing draft and returns a structured review — missing fie
 detected issues, suggestions, and a flag for when a human should review the listing.
 
 The point of the project is provider-neutral AI integration: the application code talks to
-Spring AI's `ChatClient` and does not know whether the model behind it is OpenAI or Google
-Gemini. You switch providers by changing the active Spring profile, not the code.
+Spring AI's `ChatClient` and does not know whether the model behind it is OpenAI, Google
+Gemini, Ollama, or an OpenAI-compatible local server such as oMLX. You switch providers by
+changing the active Spring profile, not the code.
 
 > This is a companion project to the blog post
 > [Spring AI for Java Developers: Build a Seller Listing Quality API](https://iseif.dev/2026/07/13/spring-ai-for-java-developers-build-a-seller-listing-quality-api/).
@@ -17,11 +18,16 @@ Gemini. You switch providers by changing the active Spring profile, not the code
 
 - Java 25
 - Maven (or the bundled `./mvnw` wrapper)
-- An API key for OpenAI **or** Google Gemini
+- One configured model provider:
+  - an API key for OpenAI or Google Gemini
+  - Ollama with `gemma4:e4b` downloaded locally
+  - oMLX on Apple Silicon with `mlx-community/gemma-4-e4b-it-4bit` downloaded locally
 
 ## Running
 
-Keys are read from environment variables — never commit them.
+### Cloud providers
+
+Keys are read from environment variables. Never commit them.
 
 **OpenAI:**
 
@@ -36,6 +42,46 @@ export OPENAI_API_KEY="your-api-key"
 export GEMINI_API_KEY="your-api-key"
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=gemini
 ```
+
+### Local providers
+
+**Ollama:**
+
+Install and start [Ollama](https://ollama.com/download), then download the model before
+starting the application:
+
+```bash
+ollama pull gemma4:e4b
+./mvnw spring-boot:run -Dspring-boot.run.profiles=ollama
+```
+
+The profile defaults to `http://localhost:11434` and `gemma4:e4b`. Override them with
+`OLLAMA_BASE_URL` and `OLLAMA_CHAT_MODEL` when needed.
+
+**oMLX on Apple Silicon:**
+
+Install the [oMLX macOS app](https://github.com/jundot/omlx/releases), or install it with
+Homebrew:
+
+```bash
+brew tap jundot/omlx https://github.com/jundot/omlx
+brew install omlx
+omlx start
+```
+
+Open [the local oMLX admin dashboard](http://localhost:8000/admin) and use its model
+downloader to install `mlx-community/gemma-4-e4b-it-4bit`. Then check the API-visible model
+identifier and start the application:
+
+```bash
+curl http://localhost:8000/v1/models
+./mvnw spring-boot:run -Dspring-boot.run.profiles=omlx
+```
+
+The profile defaults to `http://localhost:8000/v1` and
+`mlx-community/gemma-4-e4b-it-4bit`. If `/v1/models` reports a different identifier, set
+`OMLX_CHAT_MODEL` to that value. Use `OMLX_BASE_URL` for a different endpoint and
+`OMLX_API_KEY` when oMLX authentication is enabled.
 
 ## Calling the API
 

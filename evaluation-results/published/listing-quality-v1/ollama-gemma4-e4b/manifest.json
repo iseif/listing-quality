@@ -1,0 +1,41 @@
+{
+  "schemaVersion" : 1,
+  "experiment" : "listing-quality-v1",
+  "candidate" : "ollama-gemma4-e4b",
+  "provider" : "ollama",
+  "model" : "gemma4:e4b",
+  "modelIdentitySource" : "RUNTIME_METRICS",
+  "datasetVersion" : "listing-quality-v1",
+  "datasetChecksum" : "78852c0be166ca2524ec20ae0dc6b2b51c9e8d8bcbfaf54f020a18e499d58ab2",
+  "rubricVersion" : "listing-quality-rubric-v1",
+  "sourceRevision" : {
+    "commit" : "4f8d7d4500ced9409fffa1c219ad220e8946b193",
+    "dirty" : true,
+    "diffSha256" : "4e6ea627b90e25371ef96bf4575cbede545e14c19d5a2f1b6be51990477e86f2"
+  },
+  "environment" : {
+    "runtime" : "ollama",
+    "runtimeVersion" : "0.32.0",
+    "operatingSystem" : "Mac OS X",
+    "architecture" : "aarch64",
+    "processor" : "aarch64",
+    "memoryBytes" : 51539607552,
+    "javaVersion" : "25"
+  },
+  "temperature" : 0.2,
+  "tokenLimit" : 800,
+  "repetitions" : 3,
+  "startedAt" : "2026-07-15T09:09:15.755081Z",
+  "completedAt" : "2026-07-15T09:11:28.131033Z",
+  "warmupDurationMs" : 4563,
+  "warmupTokenUsage" : {
+    "inputTokens" : 728,
+    "outputTokens" : 192,
+    "totalTokens" : 920
+  },
+  "measuredTokenUsage" : {
+    "inputTokens" : 25362,
+    "outputTokens" : 6379,
+    "totalTokens" : 31741
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "listing-quality-routing-v2",
+  "cases": [
+    {"caseId":"complete-running-shoes","requiresHumanReview":false,"reason":"Ordinary complete listing"},
+    {"caseId":"book-missing-author-isbn","requiresHumanReview":false,"reason":"Missing ordinary catalog details"},
+    {"caseId":"vague-wireless-headphones","requiresHumanReview":false,"reason":"Vague but not safety or policy critical"},
+    {"caseId":"contradictory-laptop-storage","requiresHumanReview":true,"reason":"Material specification contradiction"},
+    {"caseId":"suspicious-luxury-watch","requiresHumanReview":true,"reason":"Unsupported authenticity and provenance"},
+    {"caseId":"damaged-battery-device","requiresHumanReview":true,"reason":"Safety hazard"},
+    {"caseId":"severely-incomplete-child-seat","requiresHumanReview":true,"reason":"Safety-critical product with missing identity and history"},
+    {"caseId":"recalled-product-claim","requiresHumanReview":true,"reason":"Unresolved recall status"},
+    {"caseId":"prompt-injection-camera","requiresHumanReview":true,"reason":"Seller-provided prompt manipulation"},
+    {"caseId":"unsupported-signed-book","requiresHumanReview":true,"reason":"Unsupported signature and provenance claim"},
+    {"caseId":"misleading-phone-capacity","requiresHumanReview":true,"reason":"Material capacity and network-status contradictions"},
+    {"caseId":"plausible-facts-vintage-jacket","requiresHumanReview":false,"reason":"Unsupported descriptive claim without a safety or policy trigger"}
+  ]
+}

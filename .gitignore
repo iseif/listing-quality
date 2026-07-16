@@ -1,5 +1,9 @@
 HELP.md
 target/
+# Evaluation working runs stay under listing-quality-evaluation/target and remain ignored.
+# Sanitized evidence is reviewed and tracked separately.
+!/evaluation-results/published/
+!/evaluation-results/published/**
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

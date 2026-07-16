@@ -1,0 +1,41 @@
+{
+  "schemaVersion" : 1,
+  "experiment" : "listing-quality-v1",
+  "candidate" : "omlx-qwen3.6-35b-a3b-6bit",
+  "provider" : "omlx",
+  "model" : "Qwen3.6-35B-A3B-MLX-6bit",
+  "modelIdentitySource" : "RUNTIME_METRICS",
+  "datasetVersion" : "listing-quality-v1",
+  "datasetChecksum" : "78852c0be166ca2524ec20ae0dc6b2b51c9e8d8bcbfaf54f020a18e499d58ab2",
+  "rubricVersion" : "listing-quality-rubric-v1",
+  "sourceRevision" : {
+    "commit" : "4f8d7d4500ced9409fffa1c219ad220e8946b193",
+    "dirty" : true,
+    "diffSha256" : "4e6ea627b90e25371ef96bf4575cbede545e14c19d5a2f1b6be51990477e86f2"
+  },
+  "environment" : {
+    "runtime" : "omlx",
+    "runtimeVersion" : "0.5.1-thinking-off",
+    "operatingSystem" : "Mac OS X",
+    "architecture" : "aarch64",
+    "processor" : "aarch64",
+    "memoryBytes" : 51539607552,
+    "javaVersion" : "25"
+  },
+  "temperature" : 0.2,
+  "tokenLimit" : 800,
+  "repetitions" : 3,
+  "startedAt" : "2026-07-15T09:58:48.235791Z",
+  "completedAt" : "2026-07-15T10:01:34.263428Z",
+  "warmupDurationMs" : 4543,
+  "warmupTokenUsage" : {
+    "inputTokens" : 720,
+    "outputTokens" : 190,
+    "totalTokens" : 910
+  },
+  "measuredTokenUsage" : {
+    "inputTokens" : 25092,
+    "outputTokens" : 7595,
+    "totalTokens" : 32687
+  }
+}

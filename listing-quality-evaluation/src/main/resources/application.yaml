@@ -1,0 +1,17 @@
+spring:
+  main:
+    web-application-type: none
+    banner-mode: off
+  ai:
+    model:
+      chat: none
+      audio:
+        speech: none
+        transcription: none
+      embedding: none
+      image: none
+      moderation: none
+
+logging:
+  level:
+    root: warn

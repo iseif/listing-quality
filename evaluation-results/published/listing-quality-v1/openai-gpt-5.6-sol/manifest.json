@@ -1,0 +1,41 @@
+{
+  "schemaVersion" : 1,
+  "experiment" : "listing-quality-v1",
+  "candidate" : "openai-gpt-5.6-sol",
+  "provider" : "openai",
+  "model" : "gpt-5.6-sol",
+  "modelIdentitySource" : "RUNTIME_METRICS",
+  "datasetVersion" : "listing-quality-v1",
+  "datasetChecksum" : "78852c0be166ca2524ec20ae0dc6b2b51c9e8d8bcbfaf54f020a18e499d58ab2",
+  "rubricVersion" : "listing-quality-rubric-v1",
+  "sourceRevision" : {
+    "commit" : "4f8d7d4500ced9409fffa1c219ad220e8946b193",
+    "dirty" : true,
+    "diffSha256" : "4e6ea627b90e25371ef96bf4575cbede545e14c19d5a2f1b6be51990477e86f2"
+  },
+  "environment" : {
+    "runtime" : "openai-api",
+    "runtimeVersion" : "2026-07-15",
+    "operatingSystem" : "Mac OS X",
+    "architecture" : "aarch64",
+    "processor" : "aarch64",
+    "memoryBytes" : 51539607552,
+    "javaVersion" : "25"
+  },
+  "temperature" : 1,
+  "tokenLimit" : 800,
+  "repetitions" : 3,
+  "startedAt" : "2026-07-15T10:21:37.013932Z",
+  "completedAt" : "2026-07-15T10:26:22.153489Z",
+  "warmupDurationMs" : 7365,
+  "warmupTokenUsage" : {
+    "inputTokens" : 647,
+    "outputTokens" : 256,
+    "totalTokens" : 903
+  },
+  "measuredTokenUsage" : {
+    "inputTokens" : 22458,
+    "outputTokens" : 8661,
+    "totalTokens" : 31119
+  }
+}

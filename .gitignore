@@ -1,5 +1,6 @@
 HELP.md
 target/
+logs/
 # Evaluation working runs stay under listing-quality-evaluation/target and remain ignored.
 # Sanitized evidence is reviewed and tracked separately.
 !/evaluation-results/published/

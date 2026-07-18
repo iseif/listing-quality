@@ -1,0 +1,83 @@
+server:
+  port: ${ENRICHMENT_PORT:8081}
+
+spring:
+  application:
+    name: listing-quality-enrichment
+  ai:
+    model:
+      audio:
+        speech: none
+        transcription: none
+      chat: google-genai
+      embedding: none
+      image: none
+      moderation: none
+    chat:
+      observations:
+        log-prompt: false
+        log-completion: false
+    tools:
+      throw-exception-on-error: true
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY:}
+        chat:
+          model: ${GEMINI_CHAT_MODEL:gemini-3.5-flash}
+          max-output-tokens: ${GEMINI_MAX_OUTPUT_TOKENS:8192}
+          thinking-level: MINIMAL
+
+listing-quality:
+  enrichment:
+    primary: ${ENRICHMENT_PRIMARY:gemini}
+    fallback: ${ENRICHMENT_FALLBACK:omlx}
+    providers:
+      gemini:
+        model: ${GEMINI_CHAT_MODEL:gemini-3.5-flash}
+        api-key: ${GEMINI_API_KEY:}
+      omlx:
+        base-url: ${OMLX_BASE_URL:http://localhost:8000/v1}
+        api-key: ${OMLX_API_KEY:local}
+        model: ${OMLX_CHAT_MODEL:gemma-4-26B-A4B-it-MLX-8bit}
+    resilience:
+      max-attempts: 2
+      retry-wait: 100ms
+      structured-output-attempts: 2
+      primary-timeout: 30s
+      fallback-timeout: 40s
+      overall-timeout: 55s
+      circuit-window: 10
+      circuit-failure-threshold: 50
+      circuit-open-duration: 30s
+      half-open-calls: 2
+    catalog:
+      google-books:
+        base-url: https://www.googleapis.com/books/v1
+        api-key: ${GOOGLE_BOOKS_API_KEY:}
+        timeout: 3s
+        max-results: 3
+        max-response-bytes: 262144
+        max-attempts: ${GOOGLE_BOOKS_MAX_ATTEMPTS:3}
+        initial-backoff: ${GOOGLE_BOOKS_INITIAL_BACKOFF:250ms}
+        max-backoff: ${GOOGLE_BOOKS_MAX_BACKOFF:1s}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Grounding decisions (which item was rejected, and why) are only useful if they survive the
+# process that made them. These lines carry a failure category and a field name, never seller
+# input, prompts, provider messages, or API keys.
+logging:
+  file:
+    name: ${ENRICHMENT_LOG_FILE:logs/listing-quality-enrichment.log}
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7
+      total-size-cap: 100MB

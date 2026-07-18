@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The application writes grounding decisions to a file so they survive the process. A test run
+  is not an audit trail, so the build stays console-only and leaves no logs/ directory behind.
+  Console output is kept because tests assert on it through OutputCaptureExtension.
+-->
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+  <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+  </root>
+</configuration>

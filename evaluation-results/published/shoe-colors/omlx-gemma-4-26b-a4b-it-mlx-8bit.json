@@ -1,0 +1,14 @@
+{
+  "totalRuns": 30,
+  "schemaFailures": 0,
+  "invalidEvidenceReferences": 0,
+  "backgroundPropFalsePositives": 0,
+  "primaryAccuracy": 1.0,
+  "colorPrecision": 0.9411764705882353,
+  "colorRecall": 1.0,
+  "outsoleNegativeAccuracy": 1.0,
+  "consistency": 1.0,
+  "medianLatencyMs": 5362,
+  "p95LatencyMs": 9195,
+  "failedCaseIds": []
+}

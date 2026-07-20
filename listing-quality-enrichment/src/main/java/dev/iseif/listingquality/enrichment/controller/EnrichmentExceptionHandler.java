@@ -1,8 +1,11 @@
 package dev.iseif.listingquality.enrichment.controller;
 
+import dev.iseif.listingquality.enrichment.media.exception.ImageSourceUnavailableException;
+import dev.iseif.listingquality.enrichment.media.exception.RejectedImageException;
 import dev.iseif.listingquality.enrichment.service.book.exception.InvalidBookEnrichmentResponseException;
 import dev.iseif.listingquality.enrichment.service.execution.ModelExecutionException;
 import dev.iseif.listingquality.enrichment.service.execution.ModelFailureCategory;
+import dev.iseif.listingquality.enrichment.service.shoe.InvalidShoeColorResponseException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -35,7 +38,7 @@ public class EnrichmentExceptionHandler extends ResponseEntityExceptionHandler {
           HttpStatus.INTERNAL_SERVER_ERROR,
           "Enrichment configuration error",
           "ENRICHMENT_CONFIGURATION_ERROR",
-          "Book enrichment is not configured correctly.",
+          "Catalog enrichment is not configured correctly.",
           request);
     }
     if (exception.category() == ModelFailureCategory.SAFETY_REFUSAL
@@ -46,7 +49,7 @@ public class EnrichmentExceptionHandler extends ResponseEntityExceptionHandler {
         HttpStatus.SERVICE_UNAVAILABLE,
         "Enrichment provider unavailable",
         "ENRICHMENT_PROVIDER_UNAVAILABLE",
-        "Book enrichment is temporarily unavailable. Please try again.",
+        "Catalog enrichment is temporarily unavailable. Please try again.",
         request);
   }
 
@@ -58,6 +61,42 @@ public class EnrichmentExceptionHandler extends ResponseEntityExceptionHandler {
         "Enrichment output failed grounding validation: failure={}, field={}",
         exception.failure(), exception.field());
     return invalidResponse(request);
+  }
+
+  @ExceptionHandler(InvalidShoeColorResponseException.class)
+  ProblemDetail handleInvalidShoeColorResponse(
+      InvalidShoeColorResponseException exception,
+      HttpServletRequest request) {
+    log.warn(
+        "Shoe color output failed validation: failure={}, imageId={}",
+        exception.failure(), exception.imageId());
+    return invalidResponse(request);
+  }
+
+  @ExceptionHandler(RejectedImageException.class)
+  ProblemDetail handleRejectedImage(
+      RejectedImageException exception,
+      HttpServletRequest request) {
+    log.warn("Image was rejected: type={}", exception.getClass().getSimpleName());
+    return problem(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "Image rejected",
+        "IMAGE_REJECTED",
+        "One or more product images could not be accepted.",
+        request);
+  }
+
+  @ExceptionHandler(ImageSourceUnavailableException.class)
+  ProblemDetail handleImageSourceUnavailable(
+      ImageSourceUnavailableException exception,
+      HttpServletRequest request) {
+    log.warn("Image source is unavailable: type={}", exception.getClass().getSimpleName());
+    return problem(
+        HttpStatus.BAD_GATEWAY,
+        "Image source unavailable",
+        "IMAGE_SOURCE_UNAVAILABLE",
+        "One or more product images could not be retrieved. Please try again.",
+        request);
   }
 
   @ExceptionHandler(Exception.class)
@@ -94,7 +133,7 @@ public class EnrichmentExceptionHandler extends ResponseEntityExceptionHandler {
         HttpStatus.BAD_GATEWAY,
         "Enrichment response invalid",
         "ENRICHMENT_RESPONSE_INVALID",
-        "We could not produce a safely grounded book enrichment. Please try again.",
+        "We could not produce a safely validated catalog enrichment. Please try again.",
         request);
   }
 

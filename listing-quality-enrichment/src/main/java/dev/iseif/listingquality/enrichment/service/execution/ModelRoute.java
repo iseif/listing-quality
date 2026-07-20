@@ -23,6 +23,7 @@ public final class ModelRoute {
   private final ExecutorService executor;
 
   public ModelRoute(
+      String routeId,
       String providerId,
       Duration configuredTimeout,
       RoutePolicy policy,
@@ -31,13 +32,14 @@ public final class ModelRoute {
     this.providerId = Objects.requireNonNull(providerId);
     this.configuredTimeout = Objects.requireNonNull(configuredTimeout);
     this.executor = Objects.requireNonNull(executor);
+    Objects.requireNonNull(routeId);
     Objects.requireNonNull(policy);
-    this.retry = Retry.of(providerId, RetryConfig.custom()
+    this.retry = Retry.of(routeId, RetryConfig.custom()
         .maxAttempts(policy.maxAttempts())
         .waitDuration(policy.retryWait())
         .retryOnException(classifier::isRetryable)
         .build());
-    this.circuitBreaker = CircuitBreaker.of(providerId, CircuitBreakerConfig.custom()
+    this.circuitBreaker = CircuitBreaker.of(routeId, CircuitBreakerConfig.custom()
         .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
         .slidingWindowSize(policy.circuitWindow())
         .minimumNumberOfCalls(policy.circuitWindow())
@@ -59,7 +61,7 @@ public final class ModelRoute {
   }
 
   private <T> T executeWithTimeout(Supplier<T> action, Duration timeout) {
-    TimeLimiter limiter = TimeLimiter.of(providerId, TimeLimiterConfig.custom()
+    TimeLimiter limiter = TimeLimiter.of(circuitBreaker.getName(), TimeLimiterConfig.custom()
         .timeoutDuration(timeout)
         .cancelRunningFuture(true)
         .build());

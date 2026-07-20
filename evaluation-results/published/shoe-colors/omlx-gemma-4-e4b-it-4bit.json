@@ -1,0 +1,19 @@
+{
+  "totalRuns": 30,
+  "schemaFailures": 0,
+  "invalidEvidenceReferences": 3,
+  "backgroundPropFalsePositives": 3,
+  "primaryAccuracy": 0.8095238095238095,
+  "colorPrecision": 0.9736842105263158,
+  "colorRecall": 0.7708333333333334,
+  "outsoleNegativeAccuracy": 0.3333333333333333,
+  "consistency": 0.9,
+  "medianLatencyMs": 2601,
+  "p95LatencyMs": 5147,
+  "failedCaseIds": [
+    "green-exterior-plus-outsole",
+    "navy-white-exterior",
+    "no-shoe-visible",
+    "outsole-only"
+  ]
+}

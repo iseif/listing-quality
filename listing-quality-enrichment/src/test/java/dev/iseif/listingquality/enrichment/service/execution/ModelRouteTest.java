@@ -99,6 +99,23 @@ class ModelRouteTest {
         .isInstanceOf(CallNotPermittedException.class);
   }
 
+  @Test
+  void keepsCircuitStateIsolatedByRouteIdentifier() {
+    ModelRoute bookRoute = route("book-gemini", 1, Duration.ofSeconds(1), 2);
+    ModelRoute shoeRoute = route("shoe-color-gemini", 1, Duration.ofSeconds(1), 2);
+    AtomicInteger bookCalls = new AtomicInteger();
+    Supplier<String> unavailable = failingCall(
+        bookCalls, ModelFailureCategory.PROVIDER_UNAVAILABLE);
+
+    for (int index = 0; index < 2; index++) {
+      assertThatThrownBy(() -> bookRoute.call(unavailable, Duration.ofSeconds(1)))
+          .isInstanceOf(ModelExecutionException.class);
+    }
+
+    assertThat(shoeRoute.call(() -> "available", Duration.ofSeconds(1)))
+        .isEqualTo("available");
+  }
+
   private Supplier<String> failingCall(AtomicInteger calls, ModelFailureCategory category) {
     return () -> {
       calls.incrementAndGet();
@@ -123,7 +140,12 @@ class ModelRouteTest {
   }
 
   private ModelRoute route(int attempts, Duration timeout, int window) {
+    return route("test-gemini", attempts, timeout, window);
+  }
+
+  private ModelRoute route(String routeId, int attempts, Duration timeout, int window) {
     return new ModelRoute(
+        routeId,
         "gemini",
         timeout,
         new RoutePolicy(attempts, Duration.ofMillis(100), window, 50, Duration.ofSeconds(30), 1),

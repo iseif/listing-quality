@@ -13,9 +13,9 @@ import java.util.Set;
 @Validated
 @ConfigurationProperties("listing-quality.enrichment")
 public record EnrichmentProperties(
-    @NotBlank String primary,
-    @NotBlank String fallback,
     @NotEmpty Map<@NotBlank String, @Valid Provider> providers,
+    @NotNull @Valid Routing books,
+    @NotNull @Valid Routing shoeColors,
     @NotNull @Valid Resilience resilience) {
 
   private static final Set<String> SUPPORTED_PROVIDERS = Set.of("gemini", "omlx");
@@ -32,14 +32,18 @@ public record EnrichmentProperties(
     return provider;
   }
 
-  @AssertTrue(message = "primary and fallback must be different supported providers")
-  public boolean isRoutingValid() {
-    return primary != null
-        && fallback != null
-        && !primary.equals(fallback)
-        && SUPPORTED_PROVIDERS.contains(primary)
-        && SUPPORTED_PROVIDERS.contains(fallback)
-        && providers.keySet().containsAll(Set.of(primary, fallback));
+  @AssertTrue(message = "category routes must use different configured providers")
+  public boolean areRoutesValid() {
+    return valid(books) && valid(shoeColors);
+  }
+
+  private boolean valid(Routing routing) {
+    return routing != null
+        && routing.primary() != null
+        && routing.fallback() != null
+        && !routing.primary().equals(routing.fallback())
+        && SUPPORTED_PROVIDERS.containsAll(Set.of(routing.primary(), routing.fallback()))
+        && providers.keySet().containsAll(Set.of(routing.primary(), routing.fallback()));
   }
 
   @AssertTrue(message = "the oMLX provider requires a base URL")
@@ -52,6 +56,9 @@ public record EnrichmentProperties(
       @NotBlank String model,
       URI baseUrl,
       @NotBlank String apiKey) {
+  }
+
+  public record Routing(@NotBlank String primary, @NotBlank String fallback) {
   }
 
   public record Resilience(

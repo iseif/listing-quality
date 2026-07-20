@@ -18,6 +18,7 @@ The rest of the series:
 
 1. [Spring AI with Local LLMs](https://iseif.dev/2026/07/14/spring-ai-for-java-developers-spring-ai-with-local-llms/)
 2. [Do You Need a Frontier Model?](https://iseif.dev/2026/07/16/do-you-need-a-frontier-model-evaluating-cloud-and-local-llms-with-spring-ai/)
+3. [Building a Grounded Catalog Enricher](https://iseif.dev/2026/07/18/spring-ai-for-java-developers-building-a-grounded-catalog-enricher/)
 
 ## Project layout
 
@@ -26,7 +27,7 @@ This repository is a Maven reactor with three independent applications:
 ```text
 listing-quality/
 ├── listing-quality-service/      # The provider-neutral HTTP API
-├── listing-quality-enrichment/   # The grounded book enrichment and fallback API
+├── listing-quality-enrichment/   # Grounded book and multimodal shoe enrichment APIs
 └── listing-quality-evaluation/   # The black-box model evaluation CLI
 ```
 
@@ -50,6 +51,11 @@ cloud to a local model:
 - a Google Gemini API key for the primary route
 - oMLX on Apple Silicon for the fallback route
 - a Google Books API key for catalog evidence
+
+The shoe color API uses the same Gemini and oMLX connections with category-specific routing. It
+also needs an allowlist of trusted image hosts. The default local model is
+`gemma-4-26B-A4B-it-MLX-8bit`; the smaller `mlx-community/gemma-4-e4b-it-4bit` remains a useful
+candidate to qualify on your own catalog and hardware.
 
 ## The listing quality API
 
@@ -186,11 +192,11 @@ configurable cloud-to-local fallback.
 
 ### Running
 
-The enrichment API uses Gemini 3.5 Flash as its primary model and oMLX as its configurable local
-fallback. The checked-in default is `mlx-community/gemma-4-e4b-it-4bit`, which is a convenient
-starting point but was not reliable enough for the complete enrichment workflow in local testing.
-`gemma-4-26B-A4B-it-MLX-8bit` completed the tested workflow successfully on an Apple M4 Pro with
-48 GB of unified memory. It also uses Google Books through a fixed, bounded catalog adapter.
+The book enrichment route uses Gemini 3.5 Flash as its primary model and oMLX as its configurable
+local fallback. The smaller `mlx-community/gemma-4-e4b-it-4bit` was not reliable enough for the
+complete book workflow in local testing. `gemma-4-26B-A4B-it-MLX-8bit`, now the checked-in default,
+completed the tested workflow successfully on an Apple M4 Pro with 48 GB of unified memory. The
+book flow also uses Google Books through a fixed, bounded catalog adapter.
 Download `gemma-4-26B-A4B-it-MLX-8bit` from the oMLX admin dashboard, export the two cloud API
 keys, start oMLX, then run the module:
 
@@ -230,7 +236,7 @@ fallback. Authentication and configuration failures fail immediately. To reverse
 without Java changes:
 
 ```bash
-ENRICHMENT_PRIMARY=omlx ENRICHMENT_FALLBACK=gemini \
+BOOK_ENRICHMENT_PRIMARY=omlx BOOK_ENRICHMENT_FALLBACK=gemini \
   ./mvnw -pl listing-quality-enrichment spring-boot:run
 ```
 
@@ -299,6 +305,120 @@ The enrichment API returns the same `ProblemDetail` envelope, with its own domai
 | Authentication or configuration problem | `500` | `ENRICHMENT_CONFIGURATION_ERROR` |
 
 Provider messages, prompts, seller input, and stack traces never reach the response body.
+
+## The multimodal shoe color API
+
+This endpoint extracts a shopper-facing shoe colorway from one to three product image URLs. It
+uses a qualified Gemma 4 vision model through oMLX first and Gemini 3.5 Flash as fallback. Book
+routing remains independent and cloud-first.
+
+The extractor does not count pixels. It uses the upper to choose the primary color, includes
+meaningful colors on shopper-visible exterior components, and ignores an outsole surface shown
+only in a bottom view. Java validates image references and output invariants, then compares the
+observed palette with `listingColors`. The model never receives the listing ID or existing colors.
+
+### Running
+
+Download either `gemma-4-26B-A4B-it-MLX-8bit` or
+`mlx-community/gemma-4-e4b-it-4bit` in oMLX, start the local server, and configure every host from
+which this service may download product images:
+
+`OMLX_API_KEY` is required even for the local server, because the oMLX route is an
+`OpenAiChatModel` and the OpenAI client rejects a blank key. Any non-empty value works.
+
+```bash
+export GEMINI_API_KEY="your-gemini-key"
+export OMLX_API_KEY="local"
+export ENRICHMENT_IMAGE_ALLOWED_HOSTS=cdn.example.com,images.example.net
+export BOOK_ENRICHMENT_PRIMARY=gemini
+export BOOK_ENRICHMENT_FALLBACK=omlx
+export SHOE_COLOR_ENRICHMENT_PRIMARY=omlx
+export SHOE_COLOR_ENRICHMENT_FALLBACK=gemini
+export OMLX_CHAT_MODEL=gemma-4-26B-A4B-it-MLX-8bit
+omlx start
+./mvnw -pl listing-quality-enrichment spring-boot:run
+```
+
+An empty `ENRICHMENT_IMAGE_ALLOWED_HOSTS` value leaves the book endpoint working but rejects every
+shoe image URL. This fail-closed default prevents the public endpoint from becoming an arbitrary
+URL fetcher.
+
+### Calling the API
+
+```bash
+curl --request POST http://localhost:8081/api/enrichments/shoes/colors \
+  --header 'Content-Type: application/json' \
+  --header 'X-API-Version: 1' \
+  --data '{
+    "listingId": "shoe-123",
+    "listingColors": ["GREEN", "WHITE"],
+    "imageUrls": [
+      "https://cdn.example.com/shoe-side.jpg",
+      "https://cdn.example.com/shoe-outsole.jpg"
+    ]
+  }'
+```
+
+For the green shoe example, the side image may support `GREEN` as primary plus `WHITE` and a
+visible `BROWN` gum edge as additional colors. The bottom view is returned under `ignoredImages`
+with reason `OUTSOLE_ONLY` and cannot support a color.
+
+The service downloads each image once and sends the same verified bytes to primary and fallback.
+It requires HTTPS, an exact allowlisted host, public resolved addresses, no redirects, JPEG or PNG
+content, matching media signatures, successful decoding, bounded bytes and pixels, and bounded
+timeouts. Transient `408`, `429`, and selected `5xx` responses are retried once. A partial download
+failure produces `IMAGE_UNAVAILABLE` when at least one usable image remains.
+
+Allowlisted URL fetching is intentionally scoped for this tutorial. A production marketplace
+would normally accept internal media asset IDs and resolve them through a dedicated image service
+or proxy. That service should own authorization, DNS and egress controls, caching, transformations,
+content scanning, and auditability.
+
+Local inference removes per-request provider charges when the hardware is already owned. It does
+not remove hardware acquisition, electricity, capacity planning, latency, monitoring, upgrades, or
+operations cost. Qualify the smallest model that reliably passes your task-specific cases instead
+of assuming that a model is suitable because it fits in memory.
+
+### Shoe color model qualification
+
+The checked-in qualification dataset contains ten original, AI-generated product-image cases. Each
+candidate processed every case three times on the same MacBook Pro with an Apple M4 Pro and 48 GB
+of unified memory. The gate requires zero schema and evidence-reference failures, perfect rejection
+of outsole-only and background-prop colors, at least 90% primary-color accuracy and precision, and
+at least 85% recall.
+
+| Model | Quantization | Gate | Primary accuracy | Precision | Recall | Median | p95 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Gemma 4 E4B through oMLX | 4-bit | Failed | 80.95% | 97.37% | 77.08% | 2.60s | 5.15s |
+| Gemma 4 26B-A4B through oMLX | 8-bit | Passed | 100% | 94.12% | 100% | 5.36s | 9.20s |
+| Gemini 3.5 Flash | provider-hosted | Passed | 100% | 94.12% | 100% | 1.52s | 2.19s |
+
+The two local candidates were tested at different numeric precision, each at the quantization it
+would realistically be deployed at. This compares two deployment options rather than isolating
+parameter count, so E4B's failures cannot be attributed to model size alone.
+
+The 26B model and Gemini had perfect consistency, outsole-negative accuracy, image evidence
+references, and background-prop rejection in this experiment. E4B failed four cases and is not the
+default for this workflow. These results qualify the models only for this prompt, contract, dataset,
+and hardware. They are not a general vision-model ranking.
+
+The reviewed reports are under `evaluation-results/published/shoe-colors/`. Run the opt-in live
+qualification with `RUN_SHOE_COLOR_EVALUATION=true`; the normal Maven build skips paid and
+non-deterministic model calls.
+
+### Error contract
+
+| Situation | Status | `code` |
+|---|---|---|
+| Invalid request or image cardinality | `400` | `BAD_REQUEST` |
+| URL or image content rejected | `422` | `IMAGE_REJECTED` |
+| Trusted image source unavailable | `502` | `IMAGE_SOURCE_UNAVAILABLE` |
+| Both model routes produced invalid output | `502` | `ENRICHMENT_RESPONSE_INVALID` |
+| Terminal provider availability failure | `503` | `ENRICHMENT_PROVIDER_UNAVAILABLE` |
+| Authentication or configuration problem | `500` | `ENRICHMENT_CONFIGURATION_ERROR` |
+
+Errors never include source URLs, URL query parameters, provider messages, image bytes, seller
+input, or stack traces.
 
 ## Evaluating cloud and local models
 

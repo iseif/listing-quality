@@ -1,0 +1,117 @@
+{
+  "cases": [
+    {
+      "id": "green-exterior",
+      "resources": ["shoe-color-evaluation/images/green-exterior.jpg"],
+      "expectedOutcome": "COLORS_OBSERVED",
+      "expectedPrimary": "GREEN",
+      "expectedAdditional": ["WHITE", "BROWN"],
+      "expectedIgnoredImageIds": [],
+      "forbiddenColors": [],
+      "outsoleNegative": false,
+      "backgroundPropNegative": false
+    },
+    {
+      "id": "green-exterior-plus-outsole",
+      "resources": [
+        "shoe-color-evaluation/images/green-exterior.jpg",
+        "shoe-color-evaluation/images/gum-outsole-only.jpg"
+      ],
+      "expectedOutcome": "COLORS_OBSERVED",
+      "expectedPrimary": "GREEN",
+      "expectedAdditional": ["WHITE", "BROWN"],
+      "expectedIgnoredImageIds": ["IMAGE_2"],
+      "forbiddenColors": [],
+      "outsoleNegative": true,
+      "backgroundPropNegative": false
+    },
+    {
+      "id": "outsole-only",
+      "resources": ["shoe-color-evaluation/images/gum-outsole-only.jpg"],
+      "expectedOutcome": "INCONCLUSIVE",
+      "expectedPrimary": null,
+      "expectedAdditional": [],
+      "expectedIgnoredImageIds": ["IMAGE_1"],
+      "forbiddenColors": ["BROWN"],
+      "outsoleNegative": true,
+      "backgroundPropNegative": false
+    },
+    {
+      "id": "red-white-exterior",
+      "resources": ["shoe-color-evaluation/images/red-white-exterior.jpg"],
+      "expectedOutcome": "COLORS_OBSERVED",
+      "expectedPrimary": "RED",
+      "expectedAdditional": ["WHITE"],
+      "expectedIgnoredImageIds": [],
+      "forbiddenColors": [],
+      "outsoleNegative": false,
+      "backgroundPropNegative": false
+    },
+    {
+      "id": "navy-white-exterior",
+      "resources": ["shoe-color-evaluation/images/navy-white-exterior.jpg"],
+      "expectedOutcome": "COLORS_OBSERVED",
+      "expectedPrimary": "NAVY",
+      "expectedAdditional": ["WHITE"],
+      "expectedIgnoredImageIds": [],
+      "forbiddenColors": [],
+      "outsoleNegative": false,
+      "backgroundPropNegative": false
+    },
+    {
+      "id": "black-white-with-red-prop",
+      "resources": ["shoe-color-evaluation/images/black-white-red-prop.jpg"],
+      "expectedOutcome": "COLORS_OBSERVED",
+      "expectedPrimary": "BLACK",
+      "expectedAdditional": ["WHITE"],
+      "expectedIgnoredImageIds": [],
+      "forbiddenColors": ["RED"],
+      "outsoleNegative": false,
+      "backgroundPropNegative": true
+    },
+    {
+      "id": "beige-brown-boot",
+      "resources": ["shoe-color-evaluation/images/beige-brown-boot.jpg"],
+      "expectedOutcome": "COLORS_OBSERVED",
+      "expectedPrimary": "BEIGE",
+      "expectedAdditional": ["BROWN"],
+      "expectedIgnoredImageIds": [],
+      "forbiddenColors": [],
+      "outsoleNegative": false,
+      "backgroundPropNegative": false
+    },
+    {
+      "id": "interior-only",
+      "resources": ["shoe-color-evaluation/images/interior-only.jpg"],
+      "expectedOutcome": "INCONCLUSIVE",
+      "expectedPrimary": null,
+      "expectedAdditional": [],
+      "expectedIgnoredImageIds": ["IMAGE_1"],
+      "forbiddenColors": ["WHITE", "CREAM"],
+      "outsoleNegative": false,
+      "backgroundPropNegative": false
+    },
+    {
+      "id": "no-shoe-visible",
+      "resources": ["shoe-color-evaluation/images/no-shoe-box.jpg"],
+      "expectedOutcome": "INCONCLUSIVE",
+      "expectedPrimary": null,
+      "expectedAdditional": [],
+      "expectedIgnoredImageIds": ["IMAGE_1"],
+      "forbiddenColors": ["BROWN", "BEIGE"],
+      "outsoleNegative": false,
+      "backgroundPropNegative": true
+    },
+    {
+      "id": "yellow-black-exterior",
+      "resources": ["shoe-color-evaluation/images/yellow-black-exterior.jpg"],
+      "expectedOutcome": "COLORS_OBSERVED",
+      "expectedPrimary": "YELLOW",
+      "expectedAdditional": ["BLACK"],
+      "expectedIgnoredImageIds": [],
+      "forbiddenColors": [],
+      "outsoleNegative": false,
+      "backgroundPropNegative": false
+    }
+  ]
+}

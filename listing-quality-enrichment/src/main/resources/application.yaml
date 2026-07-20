@@ -29,8 +29,22 @@ spring:
 
 listing-quality:
   enrichment:
-    primary: ${ENRICHMENT_PRIMARY:gemini}
-    fallback: ${ENRICHMENT_FALLBACK:omlx}
+    books:
+      primary: ${BOOK_ENRICHMENT_PRIMARY:gemini}
+      fallback: ${BOOK_ENRICHMENT_FALLBACK:omlx}
+    shoe-colors:
+      primary: ${SHOE_COLOR_ENRICHMENT_PRIMARY:omlx}
+      fallback: ${SHOE_COLOR_ENRICHMENT_FALLBACK:gemini}
+    images:
+      allowed-hosts: ${ENRICHMENT_IMAGE_ALLOWED_HOSTS:iseif.dev}
+      max-images: 3
+      max-image-bytes: 5242880
+      max-total-bytes: 12582912
+      max-pixels: 25000000
+      connect-timeout: 2s
+      request-timeout: 10s
+      max-attempts: 2
+      retry-wait: 200ms
     providers:
       gemini:
         model: ${GEMINI_CHAT_MODEL:gemini-3.5-flash}

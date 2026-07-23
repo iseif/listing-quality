@@ -1,0 +1,298 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Business outcomes, Spring AI model telemetry, resilience, estimated cost, and traces for both listing-quality applications.",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "One feature observation is recorded for each completed use-case execution, independent of retries or fallback calls.",
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (job, feature) (rate(listing_quality_ai_feature_seconds_count{job=~\"$job\",feature=~\"$feature\"}[5m]))",
+          "legendFormat": "{{job}} / {{feature}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Feature executions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Successful domain responses divided by all feature executions. A seller-input response is valid and counts as success.",
+      "fieldConfig": {"defaults": {"max": 100, "min": 0, "unit": "percent"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "id": 2,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "100 * listing_quality:feature_valid_result_ratio_5m{job=~\"$job\",feature=~\"$feature\"}",
+          "legendFormat": "{{job}} / {{feature}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Valid final result percentage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Transport failures remain useful, but they do not replace domain outcome metrics. A scraped application with no 5xx responses reports a flat zero instead of an empty panel.",
+      "fieldConfig": {"defaults": {"custom": {"axisSoftMax": 1}, "min": 0, "unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+      "id": 3,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (job) (rate(http_server_requests_seconds_count{job=~\"$job\",status=~\"5..\"}[5m])) or (0 * sum by (job) (rate(http_server_requests_seconds_count{job=~\"$job\"}[5m])))",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP 5xx rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "End-to-end p95 includes input acquisition, model calls, validation, fallback, and response construction.",
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+      "id": 4,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "histogram_quantile(0.95, sum by (job, feature, le) (rate(listing_quality_ai_feature_seconds_bucket{job=~\"$job\",feature=~\"$feature\"}[5m])))",
+          "legendFormat": "{{job}} / {{feature}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "p95 end-to-end feature latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Spring AI model latency, grouped by provider system and requested model. This excludes catalog and image work around the call.",
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+      "id": 5,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "histogram_quantile(0.95, sum by (job, gen_ai_system, gen_ai_request_model, le) (rate(gen_ai_client_operation_seconds_bucket{job=~\"$job\"}[5m])))",
+          "legendFormat": "{{job}} / {{gen_ai_system}} / {{gen_ai_request_model}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "p95 Spring AI model latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Token throughput from Spring AI observations. Local providers may expose usage differently or omit it.",
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+      "id": 6,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (job, gen_ai_system, gen_ai_request_model, gen_ai_token_type) (rate(gen_ai_client_token_usage_total{job=~\"$job\"}[5m]))",
+          "legendFormat": "{{job}} / {{gen_ai_system}} / {{gen_ai_request_model}} / {{gen_ai_token_type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Input and output tokens",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Estimated cumulative provider cost using the 2026-07-21 public price snapshot. This is not a billing record.",
+      "fieldConfig": {"defaults": {"decimals": 4, "unit": "currencyUSD"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 16},
+      "id": 7,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (pricing_model, charge_type) (listing_quality:estimated_cloud_cost_usd_total{job=~\"$job\"})",
+          "legendFormat": "{{pricing_model}} / {{charge_type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Estimated cloud cost by model",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Fallback decisions are counted once after the primary route is declared unusable, not once per retry.",
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 16},
+      "id": 8,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (job, feature, reason) (increase(listing_quality_ai_fallbacks_total{job=~\"$job\",feature=~\"$feature\"}[$__rate_interval]))",
+          "legendFormat": "{{feature}} / {{reason}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Fallback count and reasons",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Terminal route failures grouped only by bounded feature, route, and failure category.",
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 16},
+      "id": 9,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (job, feature, route, category) (increase(listing_quality_ai_route_failures_total{job=~\"$job\",feature=~\"$feature\"}[$__rate_interval]))",
+          "legendFormat": "{{feature}} / {{route}} / {{category}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Route failures",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Standard Resilience4j state gauges. A value of 1 identifies the current state for each route name.",
+      "fieldConfig": {"defaults": {"min": 0, "max": 1, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 24},
+      "id": 10,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "resilience4j_circuitbreaker_state{job=~\"$job\"}",
+          "legendFormat": "{{name}} / {{state}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Circuit-breaker state",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Retry outcomes that required another attempt divided by feature executions. This exposes retry amplification before fallback. The axis keeps a stable zero-to-two scale so a quiet period does not look like a broken panel.",
+      "fieldConfig": {"defaults": {"custom": {"axisSoftMax": 2}, "decimals": 2, "min": 0, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 24},
+      "id": 11,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (job) (rate(resilience4j_retry_calls_total{job=~\"$job\",kind=~\".*_with_retry\"}[5m])) / (sum by (job) (rate(listing_quality_ai_feature_seconds_count{job=~\"$job\",feature=~\"$feature\"}[5m])) > 0)",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Retry call amplification",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Spring AI model operations divided by business feature executions. Values above one reveal retry or fallback amplification.",
+      "fieldConfig": {"defaults": {"decimals": 2, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 24},
+      "id": 12,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (job) (rate(gen_ai_client_operation_seconds_count{job=~\"$job\"}[5m])) / (sum by (job) (rate(listing_quality_ai_feature_seconds_count{job=~\"$job\",feature=~\"$feature\"}[5m])) > 0)",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Model calls per feature request",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 42,
+  "tags": ["spring-ai", "listing-quality", "observability"],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {"selected": true, "text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(listing_quality_ai_feature_seconds_count, job)",
+        "includeAll": true,
+        "label": "Application",
+        "multi": true,
+        "name": "job",
+        "query": {"query": "label_values(listing_quality_ai_feature_seconds_count, job)", "refId": "PrometheusVariableQueryEditor-VariableQuery"},
+        "refresh": 1,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {"selected": true, "text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(listing_quality_ai_feature_seconds_count{job=~\"$job\"}, feature)",
+        "includeAll": true,
+        "label": "Feature",
+        "multi": true,
+        "name": "feature",
+        "query": {"query": "label_values(listing_quality_ai_feature_seconds_count{job=~\"$job\"}, feature)", "refId": "PrometheusVariableQueryEditor-VariableQuery"},
+        "refresh": 1,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {"from": "now-30m", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Spring AI Production Overview",
+  "uid": "spring-ai-production-overview",
+  "version": 1,
+  "weekStart": ""
+}

@@ -1,6 +1,7 @@
 package dev.iseif.listingquality.enrichment.config;
 
 import dev.iseif.listingquality.enrichment.media.*;
+import dev.iseif.listingquality.enrichment.observability.EnrichmentTelemetry;
 import dev.iseif.listingquality.enrichment.prompt.ShoeColorPrompt;
 import dev.iseif.listingquality.enrichment.service.execution.EnrichmentFailureClassifier;
 import dev.iseif.listingquality.enrichment.service.execution.ModelRoute;
@@ -126,7 +127,8 @@ class ShoeColorEnrichmentConfiguration {
       @Qualifier("shoeColorFallbackModelRoute") ModelRoute fallbackRoute,
       ShoeColorExtractionValidator validator,
       EnrichmentFailureClassifier classifier,
-      EnrichmentProperties properties) {
+      EnrichmentProperties properties,
+      EnrichmentTelemetry telemetry) {
     return new FailoverShoeColorGenerator(
         generators.require(properties.shoeColors().primary()),
         generators.require(properties.shoeColors().fallback()),
@@ -134,7 +136,8 @@ class ShoeColorEnrichmentConfiguration {
         fallbackRoute,
         validator,
         classifier,
-        properties.resilience().overallTimeout());
+        properties.resilience().overallTimeout(),
+        telemetry);
   }
 
   @Bean
@@ -142,8 +145,10 @@ class ShoeColorEnrichmentConfiguration {
       ProductImageLoader imageLoader,
       ShoeColorPrompt prompt,
       FailoverShoeColorGenerator failover,
-      ShoeColorComparisonPolicy comparisonPolicy) {
-    return new ShoeColorEnrichmentService(imageLoader, prompt, failover, comparisonPolicy);
+      ShoeColorComparisonPolicy comparisonPolicy,
+      EnrichmentTelemetry telemetry) {
+    return new ShoeColorEnrichmentService(
+        imageLoader, prompt, failover, comparisonPolicy, telemetry);
   }
 
   private String read(Resource resource) throws IOException {

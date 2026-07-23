@@ -6,6 +6,7 @@ import dev.iseif.listingquality.enrichment.media.ProductImageLoadResult;
 import dev.iseif.listingquality.enrichment.media.ProductImageLoader;
 import dev.iseif.listingquality.enrichment.model.ExecutionRoute;
 import dev.iseif.listingquality.enrichment.model.shoe.*;
+import dev.iseif.listingquality.enrichment.observability.EnrichmentTelemetry;
 import dev.iseif.listingquality.enrichment.prompt.ShoeColorPrompt;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,8 +16,10 @@ import org.springframework.util.MimeTypeUtils;
 
 import java.net.URI;
 import java.util.List;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -34,6 +37,9 @@ class ShoeColorEnrichmentServiceTest {
 
   @Mock
   private ShoeColorComparisonPolicy comparison;
+
+  @Mock
+  private EnrichmentTelemetry telemetry;
 
   @Test
   void loadsAndRendersOnceThenComparesTheValidatedExecution() {
@@ -62,9 +68,11 @@ class ShoeColorEnrichmentServiceTest {
         validated,
         List.of(ShoeColorWarning.IMAGE_UNAVAILABLE),
         ExecutionRoute.PRIMARY)).willReturn(expected);
+    given(telemetry.observeShoeColor(any())).willAnswer(invocation ->
+        ((Supplier<?>) invocation.getArgument(0)).get());
 
     ShoeColorEnrichmentResponse result = new ShoeColorEnrichmentService(
-        imageLoader, prompt, failover, comparison).enrich(request);
+        imageLoader, prompt, failover, comparison, telemetry).enrich(request);
 
     assertThat(result).isSameAs(expected);
     verify(imageLoader).load(request.imageUrls());
@@ -75,5 +83,6 @@ class ShoeColorEnrichmentServiceTest {
         validated,
         List.of(ShoeColorWarning.IMAGE_UNAVAILABLE),
         ExecutionRoute.PRIMARY);
+    verify(telemetry).observeShoeColor(any());
   }
 }

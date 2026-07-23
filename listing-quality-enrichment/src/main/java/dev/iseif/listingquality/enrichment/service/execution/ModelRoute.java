@@ -1,9 +1,7 @@
 package dev.iseif.listingquality.enrichment.service.execution;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.retry.Retry;
-import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 
@@ -23,31 +21,16 @@ public final class ModelRoute {
   private final ExecutorService executor;
 
   public ModelRoute(
-      String routeId,
       String providerId,
       Duration configuredTimeout,
-      RoutePolicy policy,
-      EnrichmentFailureClassifier classifier,
+      Retry retry,
+      CircuitBreaker circuitBreaker,
       ExecutorService executor) {
     this.providerId = Objects.requireNonNull(providerId);
     this.configuredTimeout = Objects.requireNonNull(configuredTimeout);
+    this.retry = Objects.requireNonNull(retry);
+    this.circuitBreaker = Objects.requireNonNull(circuitBreaker);
     this.executor = Objects.requireNonNull(executor);
-    Objects.requireNonNull(routeId);
-    Objects.requireNonNull(policy);
-    this.retry = Retry.of(routeId, RetryConfig.custom()
-        .maxAttempts(policy.maxAttempts())
-        .waitDuration(policy.retryWait())
-        .retryOnException(classifier::isRetryable)
-        .build());
-    this.circuitBreaker = CircuitBreaker.of(routeId, CircuitBreakerConfig.custom()
-        .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
-        .slidingWindowSize(policy.circuitWindow())
-        .minimumNumberOfCalls(policy.circuitWindow())
-        .failureRateThreshold(policy.circuitFailureThreshold())
-        .waitDurationInOpenState(policy.circuitOpenDuration())
-        .permittedNumberOfCallsInHalfOpenState(policy.halfOpenCalls())
-        .recordException(classifier::recordsCircuitFailure)
-        .build());
   }
 
   public <T> T call(Supplier<T> action, Duration remainingOverallTime) {
@@ -58,6 +41,10 @@ public final class ModelRoute {
     Supplier<T> retried = Retry.decorateSupplier(retry, action);
     return CircuitBreaker.decorateSupplier(
         circuitBreaker, () -> executeWithTimeout(retried, effectiveTimeout)).get();
+  }
+
+  public String providerId() {
+    return providerId;
   }
 
   private <T> T executeWithTimeout(Supplier<T> action, Duration timeout) {

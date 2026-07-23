@@ -6,7 +6,7 @@ spring:
       genai:
         api-key: ${GEMINI_API_KEY}
         chat:
-          model: ${GEMINI_CHAT_MODEL:gemini-3.1-flash-lite}
+          model: ${GEMINI_CHAT_MODEL:gemini-3.5-flash}
           # Gemini names the response token cap max-output-tokens.
           max-output-tokens: 800
           # Gemini 3.5 Flash defaults to medium thinking, which can consume this output budget

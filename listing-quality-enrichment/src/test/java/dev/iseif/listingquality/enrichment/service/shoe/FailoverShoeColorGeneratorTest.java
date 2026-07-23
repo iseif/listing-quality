@@ -4,6 +4,8 @@ import dev.iseif.listingquality.enrichment.media.ProductImage;
 import dev.iseif.listingquality.enrichment.model.ExecutionRoute;
 import dev.iseif.listingquality.enrichment.model.shoe.GeneratedShoeColorExtraction;
 import dev.iseif.listingquality.enrichment.model.shoe.ShoeColorOutcome;
+import dev.iseif.listingquality.enrichment.observability.EnrichmentFeature;
+import dev.iseif.listingquality.enrichment.observability.EnrichmentTelemetry;
 import dev.iseif.listingquality.enrichment.service.execution.EnrichmentFailureClassifier;
 import dev.iseif.listingquality.enrichment.service.execution.ModelExecutionException;
 import dev.iseif.listingquality.enrichment.service.execution.ModelFailureCategory;
@@ -45,6 +47,9 @@ class FailoverShoeColorGeneratorTest {
   @Mock
   private ShoeColorExtractionValidator validator;
 
+  @Mock
+  private EnrichmentTelemetry telemetry;
+
   private final String prompt = "same prompt";
   private final List<ProductImage> images = List.of(image("IMAGE_1"));
   private final GeneratedShoeColorExtraction generated = new GeneratedShoeColorExtraction(
@@ -58,7 +63,10 @@ class FailoverShoeColorGeneratorTest {
 
   @BeforeEach
   void setUp() {
+    given(primaryRoute.providerId()).willReturn("omlx");
     given(primaryRoute.call(any(), any())).willAnswer(invocation -> invoke(invocation.getArgument(0)));
+    given(telemetry.observeRoute(any(), any(), any(), any()))
+        .willAnswer(invocation -> invoke(invocation.getArgument(3)));
     failoverGenerator = new FailoverShoeColorGenerator(
         primary,
         fallback,
@@ -66,7 +74,8 @@ class FailoverShoeColorGeneratorTest {
         fallbackRoute,
         validator,
         new EnrichmentFailureClassifier(),
-        Duration.ofSeconds(5));
+        Duration.ofSeconds(5),
+        telemetry);
   }
 
   @Test
@@ -94,10 +103,13 @@ class FailoverShoeColorGeneratorTest {
 
     assertThat(result.route()).isEqualTo(ExecutionRoute.FALLBACK);
     verify(fallback).generate(same(prompt), same(images));
+    verify(telemetry).recordFallback(
+        org.mockito.ArgumentMatchers.eq(EnrichmentFeature.SHOE_COLOR),
+        org.mockito.ArgumentMatchers.any(ModelExecutionException.class));
   }
 
   @Test
-  void fallsBackForInvalidOrInconclusivePrimaryOutput() {
+  void fallsBackForInvalidPrimaryOutput() {
     enableFallbackRoute();
     given(primary.generate(prompt, images)).willReturn(generated);
     given(fallback.generate(prompt, images)).willReturn(generated);
@@ -108,12 +120,20 @@ class FailoverShoeColorGeneratorTest {
 
     assertThat(failoverGenerator.execute(prompt, images).route())
         .isEqualTo(ExecutionRoute.FALLBACK);
+  }
 
+  @Test
+  void recordsOneFallbackWhenPrimaryOutputIsInconclusive() {
+    enableFallbackRoute();
+    given(primary.generate(prompt, images)).willReturn(generated);
+    given(fallback.generate(prompt, images)).willReturn(generated);
     given(validator.validate(generated, images))
         .willReturn(inconclusive)
         .willReturn(observed);
+
     assertThat(failoverGenerator.execute(prompt, images).route())
         .isEqualTo(ExecutionRoute.FALLBACK);
+    verify(telemetry).recordInconclusiveFallback(EnrichmentFeature.SHOE_COLOR);
   }
 
   @Test
@@ -137,6 +157,7 @@ class FailoverShoeColorGeneratorTest {
 
     assertThatThrownBy(() -> failoverGenerator.execute(prompt, images)).isSameAs(failure);
     verify(fallback, never()).generate(any(), any());
+    verify(telemetry, never()).recordFallback(any(), any());
   }
 
   @Test
@@ -162,6 +183,7 @@ class FailoverShoeColorGeneratorTest {
   }
 
   private void enableFallbackRoute() {
+    given(fallbackRoute.providerId()).willReturn("gemini");
     given(fallbackRoute.call(any(), any())).willAnswer(
         invocation -> invoke(invocation.getArgument(0)));
   }

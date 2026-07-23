@@ -13,3 +13,28 @@ spring:
         api-key: test
         chat:
           model: gemini-3.1-flash-lite
+
+# This file shadows src/main/resources/application.yaml rather than layering on top of it,
+# because Spring Boot loads only the first application.yaml on the classpath. The management
+# block below therefore mirrors the shipped defaults so tests observe the same telemetry
+# configuration the application actually runs with.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        gen_ai.client.operation: true
+        listing.quality.ai.feature: true
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          enabled: false
+  otlp:
+    metrics:
+      export:
+        enabled: false

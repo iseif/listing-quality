@@ -2,6 +2,9 @@ package dev.iseif.listingquality.enrichment.config;
 
 import dev.iseif.listingquality.enrichment.service.execution.EnrichmentFailureClassifier;
 import dev.iseif.listingquality.enrichment.service.execution.ModelRouteFactory;
+import io.micrometer.context.ContextExecutorService;
+import io.micrometer.context.ContextSnapshotFactory;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import org.springframework.ai.chat.client.advisor.ToolCallingAdvisor;
 import org.springframework.ai.chat.client.advisor.observation.AdvisorObservationConvention;
@@ -26,7 +29,9 @@ class EnrichmentModelConfiguration {
 
   @Bean(destroyMethod = "close")
   ExecutorService enrichmentExecutor() {
-    return Executors.newVirtualThreadPerTaskExecutor();
+    return ContextExecutorService.wrap(
+        Executors.newVirtualThreadPerTaskExecutor(),
+        ContextSnapshotFactory.builder().build());
   }
 
   @Bean
@@ -38,8 +43,10 @@ class EnrichmentModelConfiguration {
   ModelRouteFactory modelRouteFactory(
       EnrichmentProperties properties,
       EnrichmentFailureClassifier classifier,
-      ExecutorService enrichmentExecutor) {
-    return new ModelRouteFactory(properties.resilience(), classifier, enrichmentExecutor);
+      ExecutorService enrichmentExecutor,
+      MeterRegistry meterRegistry) {
+    return new ModelRouteFactory(
+        properties.resilience(), classifier, enrichmentExecutor, meterRegistry);
   }
 
   @Bean

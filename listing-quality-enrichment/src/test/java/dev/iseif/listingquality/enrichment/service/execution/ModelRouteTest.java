@@ -1,6 +1,8 @@
 package dev.iseif.listingquality.enrichment.service.execution;
 
+import dev.iseif.listingquality.enrichment.config.EnrichmentProperties;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -18,6 +20,7 @@ class ModelRouteTest {
 
   private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
   private final EnrichmentFailureClassifier classifier = new EnrichmentFailureClassifier();
+  private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
   @AfterEach
   void closeExecutor() {
@@ -116,6 +119,30 @@ class ModelRouteTest {
         .isEqualTo("available");
   }
 
+  @Test
+  void publishesRetryAndCircuitBreakerMetricsForTheRoute() {
+    ModelRoute route = route("book-gemini-primary", 2, Duration.ofSeconds(1), 2);
+    AtomicInteger calls = new AtomicInteger();
+
+    assertThat(route.call(() -> {
+      if (calls.incrementAndGet() == 1) {
+        throw ModelExecutionException.eligible(
+            "gemini", ModelFailureCategory.PROVIDER_UNAVAILABLE, new RuntimeException());
+      }
+      return "ok";
+    }, Duration.ofSeconds(1))).isEqualTo("ok");
+
+    assertThat(meterRegistry.getMeters().stream()
+        .map(meter -> meter.getId().getName()))
+        .contains("resilience4j.retry.calls", "resilience4j.circuitbreaker.calls");
+    assertThat(meterRegistry.getMeters().stream()
+        .filter(meter -> meter.getId().getName().startsWith("resilience4j."))
+        .flatMap(meter -> meter.getId().getTags().stream())
+        .filter(tag -> tag.getKey().equals("name"))
+        .map(io.micrometer.core.instrument.Tag::getValue))
+        .containsOnly("book-gemini-primary");
+  }
+
   private Supplier<String> failingCall(AtomicInteger calls, ModelFailureCategory category) {
     return () -> {
       calls.incrementAndGet();
@@ -144,12 +171,22 @@ class ModelRouteTest {
   }
 
   private ModelRoute route(String routeId, int attempts, Duration timeout, int window) {
-    return new ModelRoute(
-        routeId,
-        "gemini",
+    var resilience = new EnrichmentProperties.Resilience(
+        attempts,
+        Duration.ofMillis(100),
+        2,
         timeout,
-        new RoutePolicy(attempts, Duration.ofMillis(100), window, 50, Duration.ofSeconds(30), 1),
+        timeout,
+        Duration.ofSeconds(5),
+        window,
+        50,
+        Duration.ofSeconds(30),
+        1);
+    return new ModelRouteFactory(
+        resilience,
         classifier,
-        executor);
+        executor,
+        meterRegistry)
+        .create(routeId, "gemini", timeout);
   }
 }

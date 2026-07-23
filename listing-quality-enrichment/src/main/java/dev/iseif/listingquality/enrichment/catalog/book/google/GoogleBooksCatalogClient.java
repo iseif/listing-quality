@@ -41,6 +41,7 @@ public final class GoogleBooksCatalogClient implements BookCatalogClient {
     this.restClient = restClientBuilder
         .baseUrl(properties.baseUrl().toString())
         .requestFactory(requestFactory)
+        .observationConvention(new GoogleBooksClientRequestObservationConvention())
         .build();
     this.objectMapper = objectMapper;
     this.properties = properties;

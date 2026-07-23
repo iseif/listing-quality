@@ -5,6 +5,8 @@ import dev.iseif.listingquality.enrichment.catalog.book.BookCatalogTools;
 import dev.iseif.listingquality.enrichment.model.ExecutionRoute;
 import dev.iseif.listingquality.enrichment.model.book.BookEnrichmentRequest;
 import dev.iseif.listingquality.enrichment.model.book.GeneratedBookEnrichment;
+import dev.iseif.listingquality.enrichment.observability.EnrichmentFeature;
+import dev.iseif.listingquality.enrichment.observability.EnrichmentTelemetry;
 import dev.iseif.listingquality.enrichment.service.book.exception.InvalidBookEnrichmentResponseException;
 import dev.iseif.listingquality.enrichment.service.execution.EnrichmentFailureClassifier;
 import dev.iseif.listingquality.enrichment.service.execution.ModelExecutionException;
@@ -29,6 +31,7 @@ public final class FailoverBookEnrichmentGenerator {
   private final BookEnrichmentValidator validator;
   private final EnrichmentFailureClassifier classifier;
   private final Duration overallTimeout;
+  private final EnrichmentTelemetry telemetry;
 
   public FailoverBookEnrichmentGenerator(
       BookEnrichmentGenerator primaryGenerator,
@@ -37,7 +40,8 @@ public final class FailoverBookEnrichmentGenerator {
       ModelRoute fallbackRoute,
       BookEnrichmentValidator validator,
       EnrichmentFailureClassifier classifier,
-      Duration overallTimeout) {
+      Duration overallTimeout,
+      EnrichmentTelemetry telemetry) {
     this.primaryGenerator = Objects.requireNonNull(primaryGenerator);
     this.fallbackGenerator = Objects.requireNonNull(fallbackGenerator);
     this.primaryRoute = Objects.requireNonNull(primaryRoute);
@@ -45,6 +49,7 @@ public final class FailoverBookEnrichmentGenerator {
     this.validator = Objects.requireNonNull(validator);
     this.classifier = Objects.requireNonNull(classifier);
     this.overallTimeout = Objects.requireNonNull(overallTimeout);
+    this.telemetry = Objects.requireNonNull(telemetry);
   }
 
   public BookEnrichmentExecution execute(
@@ -53,24 +58,54 @@ public final class FailoverBookEnrichmentGenerator {
       BookCatalogTools tools,
       BookCatalogEvidenceLedger ledger) {
     long startedAt = System.nanoTime();
+    RouteAttempt primary =
+        new RouteAttempt(primaryGenerator, primaryRoute, ExecutionRoute.PRIMARY);
     try {
-      GeneratedBookEnrichment generated = primaryRoute.call(
-          () -> primaryGenerator.generate(prompt, tools), remaining(startedAt));
-      return validated(request, generated, ledger, ExecutionRoute.PRIMARY);
+      return executeRoute(request, prompt, tools, ledger, primary, startedAt);
     } catch (RuntimeException primaryFailure) {
       logRouteExecutionFailure(ExecutionRoute.PRIMARY, primaryFailure);
+      telemetry.recordRouteFailure(
+          EnrichmentFeature.BOOK, ExecutionRoute.PRIMARY, primaryFailure);
       if (!isFallbackEligible(primaryFailure)) {
         throw primaryFailure;
       }
+      telemetry.recordFallback(EnrichmentFeature.BOOK, primaryFailure);
+      RouteAttempt fallback =
+          new RouteAttempt(fallbackGenerator, fallbackRoute, ExecutionRoute.FALLBACK);
       try {
-        GeneratedBookEnrichment generated = fallbackRoute.call(
-            () -> fallbackGenerator.generate(prompt, tools), remaining(startedAt));
-        return validated(request, generated, ledger, ExecutionRoute.FALLBACK);
+        return executeRoute(request, prompt, tools, ledger, fallback, startedAt);
       } catch (RuntimeException fallbackFailure) {
         logRouteExecutionFailure(ExecutionRoute.FALLBACK, fallbackFailure);
+        telemetry.recordRouteFailure(
+            EnrichmentFeature.BOOK, ExecutionRoute.FALLBACK, fallbackFailure);
         throw terminalFailure(primaryFailure, fallbackFailure);
       }
     }
+  }
+
+  private BookEnrichmentExecution executeRoute(
+      BookEnrichmentRequest request,
+      String prompt,
+      BookCatalogTools tools,
+      BookCatalogEvidenceLedger ledger,
+      RouteAttempt attempt,
+      long startedAt) {
+    return telemetry.observeRoute(
+        EnrichmentFeature.BOOK,
+        attempt.executionRoute(),
+        attempt.route().providerId(),
+        () -> {
+          GeneratedBookEnrichment generated = attempt.route().call(
+              () -> attempt.generator().generate(prompt, tools), remaining(startedAt));
+          return validated(request, generated, ledger, attempt.executionRoute());
+        });
+  }
+
+  /** One primary or fallback route: the generator to run, the resilience route, and its label. */
+  private record RouteAttempt(
+      BookEnrichmentGenerator generator,
+      ModelRoute route,
+      ExecutionRoute executionRoute) {
   }
 
   private BookEnrichmentExecution validated(

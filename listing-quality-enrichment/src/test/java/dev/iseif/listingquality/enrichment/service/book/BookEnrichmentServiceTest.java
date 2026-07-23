@@ -7,6 +7,7 @@ import dev.iseif.listingquality.enrichment.model.ExecutionRoute;
 import dev.iseif.listingquality.enrichment.model.book.BookEnrichmentRequest;
 import dev.iseif.listingquality.enrichment.model.book.BookEnrichmentResponse;
 import dev.iseif.listingquality.enrichment.model.book.EnrichmentStatus;
+import dev.iseif.listingquality.enrichment.observability.EnrichmentTelemetry;
 import dev.iseif.listingquality.enrichment.prompt.BookEnrichmentPrompt;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,6 +37,9 @@ class BookEnrichmentServiceTest {
   @Mock
   private FailoverBookEnrichmentGenerator failover;
 
+  @Mock
+  private EnrichmentTelemetry telemetry;
+
   @Test
   void createsOneRequestScopedLedgerAndToolSet() {
     BookEnrichmentRequest request = new BookEnrichmentRequest(
@@ -44,9 +49,11 @@ class BookEnrichmentServiceTest {
     given(prompt.render(request)).willReturn("rendered");
     given(failover.execute(eq(request), eq("rendered"), any(), any()))
         .willReturn(new BookEnrichmentExecution(validated, ExecutionRoute.PRIMARY));
+    given(telemetry.observeBook(any())).willAnswer(invocation ->
+        ((Supplier<?>) invocation.getArgument(0)).get());
 
     BookEnrichmentResponse response = new BookEnrichmentService(
-        catalogClient, prompt, failover).enrich(request);
+        catalogClient, prompt, failover, telemetry).enrich(request);
 
     assertThat(response.execution().route()).isEqualTo(ExecutionRoute.PRIMARY);
     assertThat(response.requiresSellerApproval()).isFalse();
@@ -56,5 +63,6 @@ class BookEnrichmentServiceTest {
     verify(failover).execute(eq(request), eq("rendered"), tools.capture(), ledger.capture());
     assertThat(tools.getValue()).isNotNull();
     assertThat(ledger.getValue()).isNotNull();
+    verify(telemetry).observeBook(any());
   }
 }

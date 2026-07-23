@@ -3,6 +3,7 @@ package dev.iseif.listingquality.enrichment.config;
 import dev.iseif.listingquality.enrichment.catalog.book.BookCatalogClient;
 import dev.iseif.listingquality.enrichment.catalog.book.google.GoogleBooksCatalogClient;
 import dev.iseif.listingquality.enrichment.catalog.book.google.GoogleBooksProperties;
+import dev.iseif.listingquality.enrichment.observability.EnrichmentTelemetry;
 import dev.iseif.listingquality.enrichment.service.book.*;
 import dev.iseif.listingquality.enrichment.service.execution.EnrichmentFailureClassifier;
 import dev.iseif.listingquality.enrichment.service.execution.ModelRoute;
@@ -105,7 +106,8 @@ class BookEnrichmentConfiguration {
       @Qualifier("bookFallbackModelRoute") ModelRoute fallbackRoute,
       BookEnrichmentValidator validator,
       EnrichmentFailureClassifier classifier,
-      EnrichmentProperties properties) {
+      EnrichmentProperties properties,
+      EnrichmentTelemetry telemetry) {
     return new FailoverBookEnrichmentGenerator(
         generators.require(properties.books().primary()),
         generators.require(properties.books().fallback()),
@@ -113,7 +115,8 @@ class BookEnrichmentConfiguration {
         fallbackRoute,
         validator,
         classifier,
-        properties.resilience().overallTimeout());
+        properties.resilience().overallTimeout(),
+        telemetry);
   }
 
   private String read(Resource resource) throws IOException {

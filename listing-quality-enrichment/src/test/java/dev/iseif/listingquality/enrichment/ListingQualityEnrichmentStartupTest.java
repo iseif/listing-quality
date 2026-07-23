@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
     webEnvironment = SpringBootTest.WebEnvironment.NONE,
     properties = {
         "spring.ai.google.genai.api-key=test-gemini-key",
+        "listing-quality.enrichment.providers.gemini.api-key=test-gemini-key",
         "listing-quality.enrichment.catalog.google-books.api-key=test-google-books-key"
     })
 class ListingQualityEnrichmentStartupTest {

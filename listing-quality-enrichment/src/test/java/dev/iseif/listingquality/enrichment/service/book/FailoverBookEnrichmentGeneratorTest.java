@@ -7,6 +7,8 @@ import dev.iseif.listingquality.enrichment.model.book.BookEnrichmentRequest;
 import dev.iseif.listingquality.enrichment.model.book.BookField;
 import dev.iseif.listingquality.enrichment.model.book.EnrichmentStatus;
 import dev.iseif.listingquality.enrichment.model.book.GeneratedBookEnrichment;
+import dev.iseif.listingquality.enrichment.observability.EnrichmentFeature;
+import dev.iseif.listingquality.enrichment.observability.EnrichmentTelemetry;
 import dev.iseif.listingquality.enrichment.service.book.exception.BookEnrichmentValidationFailure;
 import dev.iseif.listingquality.enrichment.service.book.exception.InvalidBookEnrichmentResponseException;
 import dev.iseif.listingquality.enrichment.service.execution.EnrichmentFailureClassifier;
@@ -54,6 +56,9 @@ class FailoverBookEnrichmentGeneratorTest {
   @Mock
   private BookCatalogTools tools;
 
+  @Mock
+  private EnrichmentTelemetry telemetry;
+
   private final BookCatalogEvidenceLedger ledger = new BookCatalogEvidenceLedger();
   private final BookEnrichmentRequest request = new BookEnrichmentRequest(
       "book-1", "Clean Code", null, null, Map.of());
@@ -66,7 +71,10 @@ class FailoverBookEnrichmentGeneratorTest {
 
   @BeforeEach
   void setUp() {
+    given(primaryRoute.providerId()).willReturn("gemini");
     given(primaryRoute.call(any(), any())).willAnswer(invocation -> invoke(invocation.getArgument(0)));
+    given(telemetry.observeRoute(any(), any(), any(), any()))
+        .willAnswer(invocation -> invoke(invocation.getArgument(3)));
     failover = new FailoverBookEnrichmentGenerator(
         primaryGenerator,
         fallbackGenerator,
@@ -74,7 +82,8 @@ class FailoverBookEnrichmentGeneratorTest {
         fallbackRoute,
         validator,
         new EnrichmentFailureClassifier(),
-        Duration.ofSeconds(5));
+        Duration.ofSeconds(5),
+        telemetry);
   }
 
   @Test
@@ -92,9 +101,9 @@ class FailoverBookEnrichmentGeneratorTest {
   @Test
   void fallsBackWithTheSamePromptAndRequestScopedTools() {
     enableFallbackRoute();
-    given(primaryGenerator.generate("same prompt", tools)).willThrow(
-        ModelExecutionException.eligible(
-            "gemini", ModelFailureCategory.QUOTA_EXHAUSTED, new RuntimeException("detail")));
+    ModelExecutionException primaryFailure = ModelExecutionException.eligible(
+        "gemini", ModelFailureCategory.QUOTA_EXHAUSTED, new RuntimeException("detail"));
+    given(primaryGenerator.generate("same prompt", tools)).willThrow(primaryFailure);
     given(fallbackGenerator.generate("same prompt", tools)).willReturn(generated);
     given(validator.validate(request, generated, ledger)).willReturn(validated);
 
@@ -102,6 +111,9 @@ class FailoverBookEnrichmentGeneratorTest {
 
     assertThat(result.route()).isEqualTo(ExecutionRoute.FALLBACK);
     verify(fallbackGenerator).generate("same prompt", tools);
+    verify(telemetry).recordRouteFailure(
+        EnrichmentFeature.BOOK, ExecutionRoute.PRIMARY, primaryFailure);
+    verify(telemetry).recordFallback(EnrichmentFeature.BOOK, primaryFailure);
   }
 
   @Test
@@ -120,6 +132,9 @@ class FailoverBookEnrichmentGeneratorTest {
     assertThat(result.route()).isEqualTo(ExecutionRoute.FALLBACK);
     assertThat(output).contains(
         "route=PRIMARY, failure=EVIDENCE_VALUE_MISMATCH, field=DESCRIPTION");
+    verify(telemetry).recordFallback(
+        org.mockito.ArgumentMatchers.eq(EnrichmentFeature.BOOK),
+        org.mockito.ArgumentMatchers.any(InvalidBookEnrichmentResponseException.class));
   }
 
   @Test
@@ -131,6 +146,7 @@ class FailoverBookEnrichmentGeneratorTest {
     assertThatThrownBy(() -> failover.execute(request, "same prompt", tools, ledger))
         .isSameAs(failure);
     verify(fallbackGenerator, never()).generate(any(), any());
+    verify(telemetry, never()).recordFallback(any(), any());
   }
 
   @Test
@@ -159,6 +175,8 @@ class FailoverBookEnrichmentGeneratorTest {
   }
 
   private void enableFallbackRoute() {
+    given(fallbackRoute.providerId()).willReturn("omlx");
     given(fallbackRoute.call(any(), any())).willAnswer(invocation -> invoke(invocation.getArgument(0)));
   }
+
 }

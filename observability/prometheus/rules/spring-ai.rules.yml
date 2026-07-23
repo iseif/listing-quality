@@ -1,0 +1,123 @@
+groups:
+  - name: listing-quality-recording
+    interval: 5s
+    rules:
+      # The divisor is filtered with `> 0` rather than clamped to a tiny floor. A clamp turns an
+      # idle feature into a 0 ratio, which reads as total failure on a panel and fires the
+      # valid-result alert during quiet periods. Filtering drops the sample instead, so no traffic
+      # produces no data.
+      - record: listing_quality:feature_valid_result_ratio_5m
+        expr: |
+          sum by (job, feature) (
+            rate(listing_quality_ai_feature_seconds_count{result="success"}[5m])
+          )
+          /
+          (
+            sum by (job, feature) (
+              rate(listing_quality_ai_feature_seconds_count[5m])
+            ) > 0
+          )
+
+      - record: listing_quality:feature_latency_p95_seconds_5m
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (job, feature, le) (
+              rate(listing_quality_ai_feature_seconds_bucket[5m])
+            )
+          )
+
+      - record: listing_quality:fallback_ratio_5m
+        expr: |
+          sum by (job, feature) (
+            rate(listing_quality_ai_fallbacks_total[5m])
+          )
+          /
+          (
+            sum by (job, feature) (
+              rate(listing_quality_ai_feature_seconds_count[5m])
+            ) > 0
+          )
+
+      - record: listing_quality:estimated_cloud_cost_usd_total
+        expr: |
+          gen_ai_client_token_usage_total{
+            gen_ai_request_model=~"gemini-3\\.5-flash.*",
+            gen_ai_token_type="input"
+          } * 1.50 / 1000000
+        labels:
+          charge_type: input
+          price_snapshot: "2026-07-21"
+          pricing_model: gemini-3.5-flash
+
+      - record: listing_quality:estimated_cloud_cost_usd_total
+        expr: |
+          gen_ai_client_token_usage_total{
+            gen_ai_request_model=~"gemini-3\\.5-flash.*",
+            gen_ai_token_type="output"
+          } * 9.00 / 1000000
+        labels:
+          charge_type: output
+          price_snapshot: "2026-07-21"
+          pricing_model: gemini-3.5-flash
+
+      - record: listing_quality:estimated_cloud_cost_usd_total
+        expr: |
+          gen_ai_client_token_usage_total{
+            gen_ai_request_model=~"gpt-5\\.4-mini.*",
+            gen_ai_token_type="input"
+          } * 0.75 / 1000000
+        labels:
+          charge_type: input
+          price_snapshot: "2026-07-21"
+          pricing_model: gpt-5.4-mini
+
+      - record: listing_quality:estimated_cloud_cost_usd_total
+        expr: |
+          gen_ai_client_token_usage_total{
+            gen_ai_request_model=~"gpt-5\\.4-mini.*",
+            gen_ai_token_type="output"
+          } * 4.50 / 1000000
+        labels:
+          charge_type: output
+          price_snapshot: "2026-07-21"
+          pricing_model: gpt-5.4-mini
+
+  - name: listing-quality-example-slos
+    interval: 30s
+    rules:
+      - alert: ListingQualityFeatureFailureRatioHigh
+        expr: listing_quality:feature_valid_result_ratio_5m < 0.99
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Feature valid-result ratio is below the example objective"
+          description: "{{ $labels.job }} {{ $labels.feature }} is below 99%. Calibrate this educational threshold with production traffic."
+
+      - alert: ListingQualityFeatureLatencyHigh
+        expr: listing_quality:feature_latency_p95_seconds_5m > 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Feature p95 latency is above the example objective"
+          description: "{{ $labels.job }} {{ $labels.feature }} is above 10 seconds. Calibrate this educational threshold with production traffic."
+
+      - alert: ListingQualityFallbackRatioHigh
+        expr: listing_quality:fallback_ratio_5m > 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Fallback ratio is above the example objective"
+          description: "{{ $labels.job }} {{ $labels.feature }} is above 10%. Investigate primary-route health and calibrate the threshold."
+
+      - alert: ListingQualityApplicationsDown
+        expr: sum(up{job=~"listing-quality-service|listing-quality-enrichment"}) < 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "One or both listing-quality applications are unavailable"
+          description: "Prometheus cannot scrape both application targets."

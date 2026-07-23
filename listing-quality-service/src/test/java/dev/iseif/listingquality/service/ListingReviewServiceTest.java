@@ -2,8 +2,10 @@ package dev.iseif.listingquality.service;
 
 import dev.iseif.listingquality.model.ListingDraft;
 import dev.iseif.listingquality.model.ListingReview;
+import dev.iseif.listingquality.observability.ListingReviewTelemetry;
 import dev.iseif.listingquality.prompt.ListingReviewPrompt;
 import dev.iseif.listingquality.service.exception.InvalidAiResponseException;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.AfterAll;
@@ -38,6 +40,8 @@ class ListingReviewServiceTest {
       new ClassPathResource("prompts/listing-review.st"), JsonMapper.builder().build());
   private final ListingReviewValidator validator =
       new ListingReviewValidator(factory.getValidator());
+  private final ListingReviewTelemetry telemetry =
+      new ListingReviewTelemetry(ObservationRegistry.NOOP);
 
   private final ListingDraft draft = new ListingDraft(
       "Wireless keyboard", "Nice keyboard", "Computer accessories",
@@ -52,7 +56,8 @@ class ListingReviewServiceTest {
       return expected;
     };
 
-    ListingReview result = new ListingReviewService(prompt, generator, validator).review(draft);
+    ListingReview result = new ListingReviewService(prompt, generator, validator, telemetry)
+        .review(draft);
 
     assertThat(result).isEqualTo(expected);
     assertThat(capturedPrompt.get()).contains("Wireless keyboard").contains("<listing-data>");
@@ -62,8 +67,10 @@ class ListingReviewServiceTest {
   void propagatesInvalidResponseWhenTheModelBreaksTheContract() {
     ListingReviewGenerator generator =
         renderedPrompt -> new ListingReview(999, List.of(), List.of(), List.of(), false);
+    ListingReviewService service =
+        new ListingReviewService(prompt, generator, validator, telemetry);
 
-    assertThatThrownBy(() -> new ListingReviewService(prompt, generator, validator).review(draft))
+    assertThatThrownBy(() -> service.review(draft))
         .isInstanceOf(InvalidAiResponseException.class);
   }
 }

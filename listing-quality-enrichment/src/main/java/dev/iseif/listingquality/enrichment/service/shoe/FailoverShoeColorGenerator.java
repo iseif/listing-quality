@@ -4,6 +4,8 @@ import dev.iseif.listingquality.enrichment.media.ProductImage;
 import dev.iseif.listingquality.enrichment.model.ExecutionRoute;
 import dev.iseif.listingquality.enrichment.model.shoe.GeneratedShoeColorExtraction;
 import dev.iseif.listingquality.enrichment.model.shoe.ShoeColorOutcome;
+import dev.iseif.listingquality.enrichment.observability.EnrichmentFeature;
+import dev.iseif.listingquality.enrichment.observability.EnrichmentTelemetry;
 import dev.iseif.listingquality.enrichment.service.execution.EnrichmentFailureClassifier;
 import dev.iseif.listingquality.enrichment.service.execution.ModelExecutionException;
 import dev.iseif.listingquality.enrichment.service.execution.ModelFailureCategory;
@@ -27,6 +29,7 @@ public final class FailoverShoeColorGenerator {
   private final ShoeColorExtractionValidator validator;
   private final EnrichmentFailureClassifier classifier;
   private final Duration overallTimeout;
+  private final EnrichmentTelemetry telemetry;
 
   public FailoverShoeColorGenerator(
       ShoeColorGenerator primaryGenerator,
@@ -35,7 +38,8 @@ public final class FailoverShoeColorGenerator {
       ModelRoute fallbackRoute,
       ShoeColorExtractionValidator validator,
       EnrichmentFailureClassifier classifier,
-      Duration overallTimeout) {
+      Duration overallTimeout,
+      EnrichmentTelemetry telemetry) {
     this.primaryGenerator = Objects.requireNonNull(primaryGenerator);
     this.fallbackGenerator = Objects.requireNonNull(fallbackGenerator);
     this.primaryRoute = Objects.requireNonNull(primaryRoute);
@@ -43,6 +47,7 @@ public final class FailoverShoeColorGenerator {
     this.validator = Objects.requireNonNull(validator);
     this.classifier = Objects.requireNonNull(classifier);
     this.overallTimeout = Objects.requireNonNull(overallTimeout);
+    this.telemetry = Objects.requireNonNull(telemetry);
   }
 
   public ShoeColorExecution execute(String prompt, List<ProductImage> images) {
@@ -59,11 +64,15 @@ public final class FailoverShoeColorGenerator {
         return primary;
       }
       log.warn("Shoe color route was inconclusive: route={}", ExecutionRoute.PRIMARY);
+      telemetry.recordInconclusiveFallback(EnrichmentFeature.SHOE_COLOR);
     } catch (RuntimeException primaryFailure) {
       logRouteFailure(ExecutionRoute.PRIMARY, primaryFailure);
+      telemetry.recordRouteFailure(
+          EnrichmentFeature.SHOE_COLOR, ExecutionRoute.PRIMARY, primaryFailure);
       if (!isFallbackEligible(primaryFailure)) {
         throw primaryFailure;
       }
+      telemetry.recordFallback(EnrichmentFeature.SHOE_COLOR, primaryFailure);
       return executeFallback(prompt, images, startedAt, primaryFailure);
     }
 
@@ -85,6 +94,8 @@ public final class FailoverShoeColorGenerator {
           startedAt);
     } catch (RuntimeException fallbackFailure) {
       logRouteFailure(ExecutionRoute.FALLBACK, fallbackFailure);
+      telemetry.recordRouteFailure(
+          EnrichmentFeature.SHOE_COLOR, ExecutionRoute.FALLBACK, fallbackFailure);
       if (primaryFailure == null) {
         throw fallbackFailure;
       }
@@ -99,9 +110,15 @@ public final class FailoverShoeColorGenerator {
       List<ProductImage> images,
       ExecutionRoute executionRoute,
       long startedAt) {
-    GeneratedShoeColorExtraction generated = route.call(
-        () -> generator.generate(prompt, images), remaining(startedAt));
-    return new ShoeColorExecution(validator.validate(generated, images), executionRoute);
+    return telemetry.observeRoute(
+        EnrichmentFeature.SHOE_COLOR,
+        executionRoute,
+        route.providerId(),
+        () -> {
+          GeneratedShoeColorExtraction generated = route.call(
+              () -> generator.generate(prompt, images), remaining(startedAt));
+          return new ShoeColorExecution(validator.validate(generated, images), executionRoute);
+        });
   }
 
   private boolean isFallbackEligible(Throwable failure) {

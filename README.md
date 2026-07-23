@@ -19,6 +19,7 @@ The rest of the series:
 1. [Spring AI with Local LLMs](https://iseif.dev/2026/07/14/spring-ai-for-java-developers-spring-ai-with-local-llms/)
 2. [Do You Need a Frontier Model?](https://iseif.dev/2026/07/16/do-you-need-a-frontier-model-evaluating-cloud-and-local-llms-with-spring-ai/)
 3. [Building a Grounded Catalog Enricher](https://iseif.dev/2026/07/18/spring-ai-for-java-developers-building-a-grounded-catalog-enricher/)
+4. [Building a Multimodal Shoe Color Enricher](https://iseif.dev/2026/07/20/spring-ai-for-java-developers-building-a-multimodal-shoe-color-enricher/)
 
 ## Project layout
 
@@ -28,7 +29,8 @@ This repository is a Maven reactor with three independent applications:
 listing-quality/
 ├── listing-quality-service/      # The provider-neutral HTTP API
 ├── listing-quality-enrichment/   # Grounded book and multimodal shoe enrichment APIs
-└── listing-quality-evaluation/   # The black-box model evaluation CLI
+├── listing-quality-evaluation/   # The black-box model evaluation CLI
+└── observability/                # Prometheus, Tempo, and Grafana local stack
 ```
 
 The evaluation module intentionally has no compile-time dependency on the service module. It
@@ -599,6 +601,56 @@ errors, stack traces, usernames, and absolute local paths. Never hand-edit score
 bundle. Change the versioned dataset when candidate input changes, the semantic rubric when judge
 scoring changes, or the routing policy when the human-review contract changes; then rerun or
 regrade the relevant evidence explicitly.
+
+## Observability
+
+Both HTTP applications collect telemetry by default. Metrics, feature and route observations,
+fallback counters, and Resilience4j meters are recorded on every boot, and `/actuator/prometheus`
+is exposed without any profile, because scraping is pull-based and costs nothing until something
+scrapes. Spring AI prompt and completion content stays disabled.
+
+The opt-in `observability` profile adds the one capability that depends on another system:
+exporting traces over OTLP HTTP, with a configurable sampling probability. Without the profile the
+applications are still fully scrapable; they simply do not push traces anywhere.
+
+Domain observations wrap the complete use case, so feature latency includes validation and fallback
+instead of measuring only the model call. The enrichment application also creates one child
+observation for every primary or fallback route, so a trace shows which route failed and whether
+fallback recovered the request. It publishes standard Resilience4j retry and circuit-breaker meters,
+and Micrometer context propagation carries the current observation into model work executed on
+virtual threads. Actuator requests are excluded from observation in every profile, so management
+traffic never reaches traces or `http.server.requests`.
+
+Start the pinned local backend:
+
+```bash
+docker compose -f observability/compose.yaml up -d
+```
+
+Then add `observability` to the application profiles to export traces to it. For example:
+
+```bash
+SPRING_PROFILES_ACTIVE=openai,observability \
+  ./mvnw -pl listing-quality-service spring-boot:run
+
+SPRING_PROFILES_ACTIVE=observability \
+  ./mvnw -pl listing-quality-enrichment spring-boot:run
+```
+
+The provider and catalog environment variables described above are still required. Open Grafana at
+[http://localhost:3000](http://localhost:3000); the local default login is `admin` / `admin` unless
+`GRAFANA_ADMIN_PASSWORD` is set. The provisioned dashboard combines both scrape targets and shows
+feature outcomes, end-to-end and model latency, token usage, dated cost estimates, fallback,
+route failures, retries, circuit state, and model-call amplification.
+
+Metric labels use finite feature, route, result, outcome, and failure vocabularies. They do not
+contain listing IDs, titles, image URLs, prompts, tool payloads, provider messages, or API keys.
+The Google Books HTTP observation convention also removes the query string from traced URLs, which
+keeps search terms, ISBNs, and the API key out of Tempo.
+The cost panels use a public 2026-07-21 price snapshot and are estimates, not billing records.
+
+See [the observability runbook](observability/README.md) for ports, startup checks, privacy notes,
+pricing limitations, and production hardening guidance.
 
 ## Testing
 

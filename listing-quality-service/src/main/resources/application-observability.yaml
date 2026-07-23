@@ -1,0 +1,20 @@
+spring:
+  ai:
+    chat:
+      observations:
+        log-prompt: false
+        log-completion: false
+
+# Metric collection and the Prometheus endpoint are part of the default configuration, because
+# scraping is pull-based and costs nothing until something scrapes. This profile adds the one
+# capability that depends on an external system: shipping traces to an OTLP collector.
+management:
+  tracing:
+    sampling:
+      probability: ${OBSERVABILITY_TRACING_SAMPLING_PROBABILITY:1.0}
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          enabled: true
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
